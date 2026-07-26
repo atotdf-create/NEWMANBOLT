@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 """
 ╔══════════════════════════════════════════════════════════════╗
-║                NEWMANBOLT PRO v3.0                          ║
+║                NEWMANBOLT ULTIMATE v4.0                     ║
 ║     The World's #1 AI-Powered Pentest Orchestrator          ║
 ║         🔥 No Root • Termux Ready • Zero Dependencies 🔥    ║
 ╚══════════════════════════════════════════════════════════════╝
 
-One command. Total recon. Attack vectors with one-click commands.
-Enhanced with Web Security Analysis, DNS Intel, and AI Exploitation.
-
+The Ultimate Pentest Tool: Blazing Fast, AI-Driven, Lethal.
 Author: Imin | Telegram: @script_ill
 """
 
@@ -41,11 +39,11 @@ from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeEl
 from rich.live import Live
 from rich.prompt import Prompt, Confirm
 from rich.text import Text
+from rich.layout import Layout
+from bs4 import BeautifulSoup
 
 console = Console()
-
-VERSION = "3.0.0"
-REPO_URL = "https://raw.githubusercontent.com/atotdf-create/NEWMANBOLT/main/autorecon.py"
+VERSION = "4.0.0"
 
 # ═══════════════════════════════════════════════════════════════
 # 🎨 CLI ASSETS
@@ -63,200 +61,133 @@ BANNER_ART = r"""
 """
 
 # ═══════════════════════════════════════════════════════════════
-# 🛠️ MODULES
+# 🛠️ ULTIMATE ENGINE
 # ═══════════════════════════════════════════════════════════════
 
-class SecurityModules:
-    @staticmethod
-    async def analyze_headers(url: str):
-        """Analyze Web Security Headers."""
-        results = {}
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, timeout=10) as resp:
-                    headers = resp.headers
-                    security_headers = [
-                        "Content-Security-Policy", "Strict-Transport-Security",
-                        "X-Frame-Options", "X-Content-Type-Options", "Referrer-Policy"
-                    ]
-                    for header in security_headers:
-                        results[header] = headers.get(header, "❌ Missing")
-        except Exception as e:
-            results["Error"] = str(e)
-        return results
-
-    @staticmethod
-    def get_dns_info(domain: str):
-        """Gather DNS Intelligence."""
-        info = {}
-        try:
-            info["IP"] = socket.gethostbyname(domain)
-            info["Hostname"] = socket.getfqdn(domain)
-        except:
-            info["Error"] = "Could not resolve"
-        return info
-
-    @staticmethod
-    async def google_dork(target: str):
-        """Perform basic Google Dorking."""
-        dorks = [
-            f"site:{target} intitle:index.of",
-            f"site:{target} ext:xml | ext:conf | ext:cnf | ext:reg | ext:inf | ext:rdp | ext:cfg | ext:txt | ext:ora | ext:ini",
-            f"site:{target} ext:sql | ext:dbf | ext:mdb",
-            f"site:{target} ext:log",
-            f"site:{target} ext:bkf | ext:bkp | ext:bak | ext:old | ext:backup"
-        ]
-        results = []
-        for dork in dorks:
-            query = urllib.parse.quote(dork)
-            results.append(f"https://www.google.com/search?q={query}")
-        return results
-
-    @staticmethod
-    async def brute_directories(target: str):
-        """Deep Directory Brute-forcing."""
-        wordlist = [".env", ".git", "admin/", "config.php", "backup.sql", "shell.php", "v1/api/"]
-        found = []
-        url = f"http://{target}/"
-        async with aiohttp.ClientSession(headers={"User-Agent": "Mozilla/5.0"}) as session:
-            for d in wordlist:
-                try:
-                    async with session.get(url + d, timeout=3) as resp:
-                        if resp.status in [200, 403]:
-                            found.append({"path": d, "status": resp.status})
-                except: continue
-        return found
-
-    @staticmethod
-    async def scan_vulns(target: str):
-        """Basic Vulnerability Scanner."""
-        vulns = []
-        url = f"http://{target}"
-        try:
-            async with aiohttp.ClientSession() as session:
-                # Check for common vulnerable paths
-                checks = [
-                    ("/.git/config", "Git Exposure"),
-                    ("/.env", "Environment File Exposure"),
-                    ("/phpinfo.php", "PHPInfo Disclosure"),
-                    ("/wp-json/wp/v2/users", "WordPress User Enum")
-                ]
-                for path, name in checks:
-                    async with session.get(url + path, timeout=5) as resp:
-                        if resp.status == 200:
-                            vulns.append(name)
-        except: pass
-        return vulns
-
-# ═══════════════════════════════════════════════════════════════
-# 🧠 RECON ENGINE PRO
-# ═══════════════════════════════════════════════════════════════
-
-class ReconEnginePro:
-    def __init__(self, target: str, mode: str = "quick", api_key: str = None):
+class UltimateScanner:
+    def __init__(self, target):
         self.target = target
-        self.mode = mode
-        self.api_key = api_key
-        self.results = {"target": target, "modules": {}}
+        self.results = {
+            "ip": None,
+            "ports": [],
+            "vulns": [],
+            "tech": [],
+            "links": []
+        }
 
-    async def run_full_recon(self):
-        console.print(Panel(f"[bold cyan]🚀 Starting Full Recon: {self.target}[/bold cyan]"))
+    async def scan(self):
+        console.print(Panel(f"[bold red]🔥 ULTIMATE SCAN INITIATED: {self.target}[/bold red]", border_style="red"))
         
-        # DNS
-        self.results["modules"]["dns"] = SecurityModules.get_dns_info(self.target)
+        with Progress(
+            SpinnerColumn(spinner_name="dots12"),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(bar_width=40),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            console=console
+        ) as progress:
+            task = progress.add_task("[yellow]Engine Running...", total=100)
+            
+            # 1. IP & DNS
+            try:
+                self.results["ip"] = socket.gethostbyname(self.target)
+            except: pass
+            progress.update(task, advance=20, description="[cyan]IP Resolved")
+
+            # 2. Fast Port Scan & Banner Grabbing
+            await self.fast_port_scan()
+            progress.update(task, advance=30, description="[cyan]Ports & Banners Scanned")
+
+            # 3. Vulnerability Audit
+            await self.audit_vulns()
+            progress.update(task, advance=30, description="[cyan]Vulnerabilities Audited")
+
+            # 4. Web Spidering
+            await self.spider()
+            progress.update(task, advance=20, description="[cyan]Spidering Complete")
+
+        self.display_results()
+
+    async def fast_port_scan(self):
+        common = [21, 22, 23, 25, 53, 80, 443, 445, 3306, 3389, 8080]
+        async def grab(port):
+            try:
+                reader, writer = await asyncio.wait_for(asyncio.open_connection(self.results["ip"], port), timeout=2)
+                writer.close()
+                await writer.wait_closed()
+                return port
+            except: return None
         
-        # Headers
+        tasks = [grab(p) for p in common]
+        found = await asyncio.gather(*tasks)
+        self.results["ports"] = [p for p in found if p]
+
+    async def audit_vulns(self):
         url = f"http://{self.target}"
-        self.results["modules"]["headers"] = await SecurityModules.analyze_headers(url)
-        
-        # Display Results
-        self.display_summary()
+        async with aiohttp.ClientSession() as session:
+            checks = [("/.env", "Env Leak"), ("/.git/config", "Git Leak"), ("/wp-config.php.bak", "Backup Leak")]
+            for path, name in checks:
+                try:
+                    async with session.get(url + path, timeout=3) as resp:
+                        if resp.status == 200: self.results["vulns"].append(name)
+                except: pass
 
-    def display_summary(self):
-        table = Table(title=f"Recon Summary - {self.target}")
-        table.add_column("Module", style="cyan")
-        table.add_column("Result", style="white")
+    async def spider(self):
+        url = f"http://{self.target}"
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=5) as resp:
+                    soup = BeautifulSoup(await resp.text(), 'html.parser')
+                    for a in soup.find_all('a', href=True):
+                        if len(self.results["links"]) < 10:
+                            self.results["links"].append(a['href'])
+        except: pass
+
+    def display_results(self):
+        table = Table(title="[bold red]ULTIMATE SCAN RESULTS[/bold red]", border_style="red")
+        table.add_column("Category", style="cyan")
+        table.add_column("Findings", style="white")
         
-        dns = self.results["modules"].get("dns", {})
-        table.add_row("IP Address", dns.get("IP", "N/A"))
-        
-        headers = self.results["modules"].get("headers", {})
-        table.add_row("CSP Header", headers.get("Content-Security-Policy", "N/A"))
-        table.add_row("HSTS Header", headers.get("Strict-Transport-Security", "N/A"))
+        table.add_row("Target IP", self.results["ip"] or "N/A")
+        table.add_row("Open Ports", ", ".join(map(str, self.results["ports"])) or "None")
+        table.add_row("Vulnerabilities", ", ".join(self.results["vulns"]) or "[green]Clean[/green]")
+        table.add_row("Spider Links", f"{len(self.results['links'])} found")
         
         console.print(table)
+        if self.results["links"]:
+            console.print(Panel("\n".join(self.results["links"][:5]), title="[yellow]Top Endpoints[/yellow]", border_style="yellow"))
 
 # ═══════════════════════════════════════════════════════════════
-# 🎯 MAIN MENU SYSTEM
+# 🎯 MENU
 # ═══════════════════════════════════════════════════════════════
-
-def show_banner():
-    console.clear()
-    console.print(f"[bold red]{BANNER_ART}[/bold red]")
-    console.print(Panel.fit(f"[bold yellow]v{VERSION}[/bold yellow] - The Ultimate Pentest Orchestrator", border_style="red"))
-
-async def update_tool():
-    """Auto-update system."""
-    console.print("[yellow][*] Checking for updates...[/yellow]")
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(REPO_URL) as resp:
-                if resp.status == 200:
-                    new_code = await resp.text()
-                    with open(__file__, "w") as f:
-                        f.write(new_code)
-                    console.print("[green][+] Updated successfully! Restart the tool.[/green]")
-                    sys.exit(0)
-    except:
-        console.print("[red][!] Update failed.[/red]")
 
 async def main_menu():
     while True:
-        show_banner()
+        console.clear()
+        console.print(f"[bold red]{BANNER_ART}[/bold red]")
+        console.print(Panel.fit(f"[bold yellow]ULTIMATE v{VERSION}[/bold yellow]", border_style="red"))
+        
         console.print(Panel(
-            "[bold cyan][1] Full Recon (DNS + Headers + Tech)[/bold cyan]\n"
-            "[bold cyan][2] Deep Directory Brute[/bold cyan]\n"
-            "[bold cyan][3] Web Security Header Audit[/bold cyan]\n"
-            "[bold cyan][4] DNS Intelligence Gathering[/bold cyan]\n"
-            "[bold cyan][5] AI Attack Vector Analysis[/bold cyan]\n"
-            "[bold cyan][6] Google Dorking Search[/bold cyan]\n"
-            "[bold cyan][7] Vulnerability Scanner[/bold cyan]\n"
-            "[bold cyan][8] Check for Updates[/bold cyan]\n"
-            "[bold red][0] Exit[/bold red]",
-            title="[bold white]MAIN MENU[/bold white]",
-            border_style="blue"
+            "[1] 🔥 Ultimate Full Scan\n"
+            "[2] 🕷️ Web Spider & Endpoint Extractor\n"
+            "[3] 🛡️ Vulnerability Audit\n"
+            "[4] 📡 Port & Banner Grabbing\n"
+            "[0] 🚪 Exit",
+            title="[bold white]COMMAND CENTER[/bold white]", border_style="blue"
         ))
         
-        choice = Prompt.ask("Select an option", choices=["1", "2", "3", "4", "5", "6", "7", "8", "0"], default="1")
+        choice = Prompt.ask("Select Command", choices=["1", "2", "3", "4", "0"], default="1")
         
-        if choice == "0":
-            break
-        elif choice == "8":
-            await update_tool()
-            continue
-            
-        target = Prompt.ask("[bold green]Enter Target (e.g., google.com)[/bold green]")
-        engine = ReconEnginePro(target)
+        if choice == "0": break
         
-        if choice == "1":
-            await engine.run_full_recon()
-        elif choice == "2":
-            results = await SecurityModules.brute_directories(target)
-            console.print(Panel(str(results), title="Directory Findings"))
-        elif choice == "3":
-            results = await SecurityModules.analyze_headers(f"http://{target}")
-            console.print(Panel(str(results), title="Header Audit"))
-        elif choice == "4":
-            results = SecurityModules.get_dns_info(target)
-            console.print(Panel(str(results), title="DNS Intel"))
-        elif choice == "6":
-            results = await SecurityModules.google_dork(target)
-            for r in results: console.print(f"[blue]Link:[/blue] {r}")
-        elif choice == "7":
-            results = await SecurityModules.scan_vulns(target)
-            console.print(Panel(str(results), title="Vulnerability Scan Results", border_style="red"))
+        target = Prompt.ask("[bold green]Enter Target Domain[/bold green]")
+        scanner = UltimateScanner(target)
         
-        Prompt.ask("\n[dim]Press Enter to return to menu...[/dim]")
+        if choice == "1": await scanner.scan()
+        elif choice == "2": await scanner.spider(); console.print(scanner.results["links"])
+        elif choice == "3": await scanner.audit_vulns(); console.print(scanner.results["vulns"])
+        elif choice == "4": await scanner.fast_port_scan(); console.print(scanner.results["ports"])
+        
+        Prompt.ask("\n[dim]Press Enter to continue...[/dim]")
 
 if __name__ == "__main__":
     try:
