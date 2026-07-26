@@ -6,7 +6,7 @@ const dns = require('dns').promises;
 const net = require('net');
 const { execSync } = require('child_process');
 
-const VERSION = "5.0.0 (JS Edition)";
+const VERSION = "6.0.0 (JS Pro)";
 const AUTHOR = "Imin";
 
 const BANNER = `
@@ -16,7 +16,7 @@ const BANNER = `
    | |\\   || |___ | |/  \\| ||   ||   ||   ||   || |___  | |  
    |_| \\__||_____||___/\\___||___||___||___||___||_____| |_|  
                                                               
-           AUTHOR: ${AUTHOR}  ● JS EDITION v${VERSION}
+           AUTHOR: ${AUTHOR}  ● JS PRO v${VERSION}
 `;
 
 const rl = readline.createInterface({
@@ -26,75 +26,87 @@ const rl = readline.createInterface({
 
 const question = (query) => new Promise((resolve) => rl.question(query, resolve));
 
+// --- Modules ---
+
 async function scanPort(host, port) {
     return new Promise((resolve) => {
         const socket = new net.Socket();
-        socket.setTimeout(2000);
-        socket.on('connect', () => {
-            socket.destroy();
-            resolve(port);
-        });
-        socket.on('timeout', () => {
-            socket.destroy();
-            resolve(null);
-        });
-        socket.on('error', () => {
-            socket.destroy();
-            resolve(null);
-        });
+        socket.setTimeout(1500);
+        socket.on('connect', () => { socket.destroy(); resolve(port); });
+        socket.on('timeout', () => { socket.destroy(); resolve(null); });
+        socket.on('error', () => { socket.destroy(); resolve(null); });
         socket.connect(port, host);
     });
 }
 
-async function runRecon(target) {
-    console.log(`\n[\x1b[33m*\x1b[0m] Starting JS Recon on: \x1b[36m${target}\x1b[0m`);
+async function getTech(target) {
+    try {
+        const res = await axios.get(`http://${target}`, { timeout: 5000 });
+        const headers = JSON.stringify(res.headers).toLowerCase();
+        const body = res.data.toLowerCase();
+        const techs = [];
+        if (headers.includes('nginx')) techs.push('Nginx');
+        if (headers.includes('apache')) techs.push('Apache');
+        if (body.includes('wp-content')) techs.push('WordPress');
+        if (body.includes('jquery')) techs.push('jQuery');
+        return techs;
+    } catch (e) { return []; }
+}
+
+async function discoverSubdomains(target) {
+    const subs = ['www', 'mail', 'ftp', 'dev', 'api', 'admin', 'test'];
+    const found = [];
+    for (const s of subs) {
+        try {
+            await dns.lookup(`${s}.${target}`);
+            found.push(`${s}.${target}`);
+        } catch (e) {}
+    }
+    return found;
+}
+
+// --- Core ---
+
+async function runFullRecon(target) {
+    console.log(`\n\x1b[31m[!] INITIATING PRO RECON: ${target}\x1b[0m`);
     
     try {
         const addr = await dns.lookup(target);
-        console.log(`[\x1b[32m+\x1b[0m] IP Address: \x1b[32m${addr.address}\x1b[0m`);
+        console.log(`\x1b[36m[DNS]\x1b[0m IP: ${addr.address}`);
         
-        console.log(`[\x1b[33m*\x1b[0m] Scanning common ports...`);
-        const ports = [21, 22, 23, 25, 53, 80, 443, 3306, 8080];
-        const openPorts = [];
+        const subs = await discoverSubdomains(target);
+        console.log(`\x1b[36m[SUBS]\x1b[0m Found: ${subs.join(', ') || 'None'}`);
         
-        for (const port of ports) {
-            const p = await scanPort(addr.address, port);
-            if (p) openPorts.push(p);
+        const ports = [21, 22, 80, 443, 3306, 8080];
+        const open = [];
+        for (const p of ports) {
+            if (await scanPort(addr.address, p)) open.push(p);
         }
-        console.log(`[\x1b[32m+\x1b[0m] Open Ports: \x1b[32m${openPorts.join(', ') || 'None'}\x1b[0m`);
+        console.log(`\x1b[36m[PORTS]\x1b[0m Open: ${open.join(', ') || 'None'}`);
+        
+        const tech = await getTech(target);
+        console.log(`\x1b[36m[TECH]\x1b[0m Detected: ${tech.join(', ') || 'Unknown'}`);
 
-        console.log(`[\x1b[33m*\x1b[0m] Checking for vulnerabilities...`);
-        const vulns = ['/.env', '/.git/config', '/phpinfo.php'];
-        for (const v of vulns) {
-            try {
-                const res = await axios.get(`http://${target}${v}`, { timeout: 3000 });
-                if (res.status === 200) console.log(`[\x1b[31m!\x1b[0m] Potential Leak: \x1b[31m${v}\x1b[0m`);
-            } catch (e) {}
-        }
-        
     } catch (err) {
-        console.log(`[\x1b[31m!\x1b[0m] Error: ${err.message}`);
+        console.log(`\x1b[31m[ERROR]\x1b[0m ${err.message}`);
     }
     
-    await question("\nPress Enter to return to menu...");
+    await question("\nPress Enter to return...");
     mainMenu();
 }
 
 function mainMenu() {
     console.clear();
     console.log(`\x1b[31m${BANNER}\x1b[0m`);
-    console.log(`\x1b[36m[1] Full JS Recon\x1b[0m`);
-    console.log(`\x1b[36m[2] Port Scanner\x1b[0m`);
-    console.log(`\x1b[36m[3] Vulnerability Audit\x1b[0m`);
+    console.log(`\x1b[33m[1] Full Pro Recon\x1b[0m`);
+    console.log(`\x1b[33m[2] Subdomain Discovery\x1b[0m`);
+    console.log(`\x1b[33m[3] Technology Detection\x1b[0m`);
     console.log(`\x1b[31m[0] Exit\x1b[0m`);
     
-    rl.question("\nSelect an option: ", async (choice) => {
-        if (choice === '0') {
-            rl.close();
-            process.exit(0);
-        }
-        const target = await question("Enter Target Domain: ");
-        if (choice === '1') await runRecon(target);
+    rl.question("\nSelect: ", async (choice) => {
+        if (choice === '0') process.exit(0);
+        const target = await question("Target Domain: ");
+        if (choice === '1') await runFullRecon(target);
         else mainMenu();
     });
 }
