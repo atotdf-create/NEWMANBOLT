@@ -30,17 +30,22 @@ fi
 git clone https://github.com/atotdf-create/NEWMANBOLT.git
 
 echo -e "${YELLOW}[*] Setting up global command...${NC}"
-# Create a wrapper script in /data/data/com.termux/files/usr/bin/ for global access
-WRAPPER="/data/data/com.termux/files/usr/bin/newmanbolt"
-if [ -d "/data/data/com.termux/files/usr/bin" ]; then
+# Create a wrapper script in Termux $PREFIX/bin for global access
+if [ -n "$PREFIX" ]; then
+    WRAPPER="$PREFIX/bin/newmanbolt"
     echo "#!/bin/bash" > $WRAPPER
     echo "python3 $HOME/Newmanbolt/autorecon.py \"\$@\"" >> $WRAPPER
     chmod +x $WRAPPER
-    echo -e "${GREEN}[+] Global command 'newmanbolt' created!${NC}"
+    echo -e "${GREEN}[+] Global command 'newmanbolt' created in $PREFIX/bin!${NC}"
 else
-    # Fallback to alias if not in Termux
-    echo "alias newmanbolt='python3 $HOME/Newmanbolt/autorecon.py'" >> $HOME/.bashrc
-    echo -e "${YELLOW}[!] Not in Termux environment, added alias to .bashrc instead.${NC}"
+    # Fallback for other Linux environments
+    mkdir -p $HOME/.local/bin
+    WRAPPER="$HOME/.local/bin/newmanbolt"
+    echo "#!/bin/bash" > $WRAPPER
+    echo "python3 $HOME/Newmanbolt/autorecon.py \"\$@\"" >> $WRAPPER
+    chmod +x $WRAPPER
+    echo "export PATH=\$PATH:\$HOME/.local/bin" >> $HOME/.bashrc
+    echo -e "${YELLOW}[!] Added command to $HOME/.local/bin and updated PATH in .bashrc.${NC}"
 fi
 
 echo -e "${GREEN}[+] Installation complete!${NC}"

@@ -127,6 +127,27 @@ class SecurityModules:
                 except: continue
         return found
 
+    @staticmethod
+    async def scan_vulns(target: str):
+        """Basic Vulnerability Scanner."""
+        vulns = []
+        url = f"http://{target}"
+        try:
+            async with aiohttp.ClientSession() as session:
+                # Check for common vulnerable paths
+                checks = [
+                    ("/.git/config", "Git Exposure"),
+                    ("/.env", "Environment File Exposure"),
+                    ("/phpinfo.php", "PHPInfo Disclosure"),
+                    ("/wp-json/wp/v2/users", "WordPress User Enum")
+                ]
+                for path, name in checks:
+                    async with session.get(url + path, timeout=5) as resp:
+                        if resp.status == 200:
+                            vulns.append(name)
+        except: pass
+        return vulns
+
 # ═══════════════════════════════════════════════════════════════
 # 🧠 RECON ENGINE PRO
 # ═══════════════════════════════════════════════════════════════
@@ -199,17 +220,18 @@ async def main_menu():
             "[bold cyan][4] DNS Intelligence Gathering[/bold cyan]\n"
             "[bold cyan][5] AI Attack Vector Analysis[/bold cyan]\n"
             "[bold cyan][6] Google Dorking Search[/bold cyan]\n"
-            "[bold cyan][7] Check for Updates[/bold cyan]\n"
+            "[bold cyan][7] Vulnerability Scanner[/bold cyan]\n"
+            "[bold cyan][8] Check for Updates[/bold cyan]\n"
             "[bold red][0] Exit[/bold red]",
             title="[bold white]MAIN MENU[/bold white]",
             border_style="blue"
         ))
         
-        choice = Prompt.ask("Select an option", choices=["1", "2", "3", "4", "5", "6", "7", "0"], default="1")
+        choice = Prompt.ask("Select an option", choices=["1", "2", "3", "4", "5", "6", "7", "8", "0"], default="1")
         
         if choice == "0":
             break
-        elif choice == "7":
+        elif choice == "8":
             await update_tool()
             continue
             
@@ -230,6 +252,9 @@ async def main_menu():
         elif choice == "6":
             results = await SecurityModules.google_dork(target)
             for r in results: console.print(f"[blue]Link:[/blue] {r}")
+        elif choice == "7":
+            results = await SecurityModules.scan_vulns(target)
+            console.print(Panel(str(results), title="Vulnerability Scan Results", border_style="red"))
         
         Prompt.ask("\n[dim]Press Enter to return to menu...[/dim]")
 
