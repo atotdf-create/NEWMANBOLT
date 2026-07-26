@@ -5,9 +5,10 @@ const readline = require('readline');
 const dns = require('dns').promises;
 const net = require('net');
 const { execSync } = require('child_process');
+const os = require('os');
 
-const VERSION = "6.0.0 (JS Pro)";
-const AUTHOR = "Imin";
+const VERSION = "7.0.0 (Hybrid Ultra)";
+const AUTHOR = "Imin & Eden lite & TDF";
 
 const BANNER = `
     __   _  _____  _      _  ___  ___  ___  ___  _     _____ 
@@ -16,7 +17,8 @@ const BANNER = `
    | |\\   || |___ | |/  \\| ||   ||   ||   ||   || |___  | |  
    |_| \\__||_____||___/\\___||___||___||___||___||_____| |_|  
                                                               
-           AUTHOR: ${AUTHOR}  ● JS PRO v${VERSION}
+           AUTHOR: ${AUTHOR}  ● HYBRID ULTRA v${VERSION}
+           🔥 Powered by VPN-KING Engine 🔥
 `;
 
 const rl = readline.createInterface({
@@ -26,12 +28,23 @@ const rl = readline.createInterface({
 
 const question = (query) => new Promise((resolve) => rl.question(query, resolve));
 
+// --- Colors ---
+const colors = {
+    red: '\x1b[31m',
+    green: '\x1b[32m',
+    yellow: '\x1b[33m',
+    blue: '\x1b[34m',
+    cyan: '\x1b[36m',
+    reset: '\x1b[0m',
+    bold: '\x1b[1m'
+};
+
 // --- Modules ---
 
 async function scanPort(host, port) {
     return new Promise((resolve) => {
         const socket = new net.Socket();
-        socket.setTimeout(1500);
+        socket.setTimeout(1000);
         socket.on('connect', () => { socket.destroy(); resolve(port); });
         socket.on('timeout', () => { socket.destroy(); resolve(null); });
         socket.on('error', () => { socket.destroy(); resolve(null); });
@@ -39,74 +52,103 @@ async function scanPort(host, port) {
     });
 }
 
-async function getTech(target) {
-    try {
-        const res = await axios.get(`http://${target}`, { timeout: 5000 });
-        const headers = JSON.stringify(res.headers).toLowerCase();
-        const body = res.data.toLowerCase();
-        const techs = [];
-        if (headers.includes('nginx')) techs.push('Nginx');
-        if (headers.includes('apache')) techs.push('Apache');
-        if (body.includes('wp-content')) techs.push('WordPress');
-        if (body.includes('jquery')) techs.push('jQuery');
-        return techs;
-    } catch (e) { return []; }
+async function getNetworkInfo() {
+    console.log(`\n${colors.cyan}[*] Gathering Network Intelligence...${colors.reset}`);
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            if (iface.family === 'IPv4' && !iface.internal) {
+                console.log(`${colors.green}[+] Interface: ${name} | IP: ${iface.address}${colors.reset}`);
+            }
+        }
+    }
 }
 
 async function discoverSubdomains(target) {
-    const subs = ['www', 'mail', 'ftp', 'dev', 'api', 'admin', 'test'];
+    console.log(`\n${colors.yellow}[*] Bruteforcing Subdomains (VPN-KING Style)...${colors.reset}`);
+    const subs = ['www', 'mail', 'ftp', 'dev', 'api', 'admin', 'test', 'vpn', 'proxy', 'secure', 'portal'];
     const found = [];
     for (const s of subs) {
         try {
-            await dns.lookup(`${s}.${target}`);
+            const addr = await dns.lookup(`${s}.${target}`);
+            console.log(`${colors.green}[+] Found: ${s}.${target} (${addr.address})${colors.reset}`);
             found.push(`${s}.${target}`);
         } catch (e) {}
     }
     return found;
 }
 
+async function scanVulns(target) {
+    console.log(`\n${colors.red}[*] Auditing Vulnerabilities...${colors.reset}`);
+    const paths = ['/.env', '/.git/config', '/phpinfo.php', '/wp-json/wp/v2/users', '/backup.sql', '/.htaccess'];
+    for (const p of paths) {
+        try {
+            const res = await axios.get(`http://${target}${p}`, { timeout: 3000 });
+            if (res.status === 200) {
+                console.log(`${colors.red}[!] CRITICAL: Exposed ${p} found on ${target}${colors.reset}`);
+            }
+        } catch (e) {}
+    }
+}
+
+// --- Termux Specific ---
+function termuxVibrate() {
+    try { execSync('termux-vibrate -d 200'); } catch (e) {}
+}
+
+function termuxNotify(msg) {
+    try { execSync(`termux-notification -t "Newmanbolt Alert" -c "${msg}"`); } catch (e) {}
+}
+
 // --- Core ---
 
-async function runFullRecon(target) {
-    console.log(`\n\x1b[31m[!] INITIATING PRO RECON: ${target}\x1b[0m`);
+async function runHybridScan(target) {
+    termuxVibrate();
+    console.log(`\n${colors.bold}${colors.red}🔥 INITIATING HYBRID ULTRA SCAN: ${target}${colors.reset}`);
+    
+    await getNetworkInfo();
     
     try {
         const addr = await dns.lookup(target);
-        console.log(`\x1b[36m[DNS]\x1b[0m IP: ${addr.address}`);
+        console.log(`\n${colors.cyan}[DNS] Main IP: ${addr.address}${colors.reset}`);
         
-        const subs = await discoverSubdomains(target);
-        console.log(`\x1b[36m[SUBS]\x1b[0m Found: ${subs.join(', ') || 'None'}`);
+        await discoverSubdomains(target);
         
-        const ports = [21, 22, 80, 443, 3306, 8080];
-        const open = [];
-        for (const p of ports) {
-            if (await scanPort(addr.address, p)) open.push(p);
+        console.log(`\n${colors.yellow}[PORTS] Scanning...${colors.reset}`);
+        const common = [21, 22, 80, 443, 3306, 8080, 10000];
+        for (const p of common) {
+            if (await scanPort(addr.address, p)) {
+                console.log(`${colors.green}[+] Port ${p} is OPEN${colors.reset}`);
+            }
         }
-        console.log(`\x1b[36m[PORTS]\x1b[0m Open: ${open.join(', ') || 'None'}`);
         
-        const tech = await getTech(target);
-        console.log(`\x1b[36m[TECH]\x1b[0m Detected: ${tech.join(', ') || 'Unknown'}`);
+        await scanVulns(target);
 
+        termuxNotify(`Scan complete for ${target}`);
     } catch (err) {
-        console.log(`\x1b[31m[ERROR]\x1b[0m ${err.message}`);
+        console.log(`${colors.red}[ERROR] ${err.message}${colors.reset}`);
     }
     
-    await question("\nPress Enter to return...");
+    await question(`\n${colors.cyan}Press Enter to return to Command Center...${colors.reset}`);
     mainMenu();
 }
 
 function mainMenu() {
     console.clear();
-    console.log(`\x1b[31m${BANNER}\x1b[0m`);
-    console.log(`\x1b[33m[1] Full Pro Recon\x1b[0m`);
-    console.log(`\x1b[33m[2] Subdomain Discovery\x1b[0m`);
-    console.log(`\x1b[33m[3] Technology Detection\x1b[0m`);
-    console.log(`\x1b[31m[0] Exit\x1b[0m`);
+    console.log(`${colors.red}${BANNER}${colors.reset}`);
+    console.log(`${colors.bold}${colors.cyan}[1] 🔥 Hybrid Ultra Scan (All-in-One)${colors.reset}`);
+    console.log(`${colors.cyan}[2] 📡 Network Intelligence Gathering${colors.reset}`);
+    console.log(`${colors.cyan}[3] 🔍 VPN-KING Subdomain Recon${colors.reset}`);
+    console.log(`${colors.cyan}[4] 🛡️ Vulnerability Audit${colors.reset}`);
+    console.log(`${colors.red}[0] 🚪 Exit${colors.reset}`);
     
-    rl.question("\nSelect: ", async (choice) => {
+    rl.question(`\n${colors.yellow}Select Command: ${colors.reset}`, async (choice) => {
         if (choice === '0') process.exit(0);
-        const target = await question("Target Domain: ");
-        if (choice === '1') await runFullRecon(target);
+        const target = await question(`${colors.green}Enter Target (e.g., google.com): ${colors.reset}`);
+        if (choice === '1') await runHybridScan(target);
+        else if (choice === '2') { await getNetworkInfo(); await question("\nDone. Press Enter..."); mainMenu(); }
+        else if (choice === '3') { await discoverSubdomains(target); await question("\nDone. Press Enter..."); mainMenu(); }
+        else if (choice === '4') { await scanVulns(target); await question("\nDone. Press Enter..."); mainMenu(); }
         else mainMenu();
     });
 }
