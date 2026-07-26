@@ -237,14 +237,48 @@ class ReconEngineUltra:
         except: pass
 
     async def ai_analyze(self):
-        # Simulated AI logic (or real call if user wants)
-        prompt = f"Analyze these recon results for {self.target}: {json.dumps(self.results['ports'])}. Suggest 3 attack vectors."
-        # For now, we provide a smart template that mimics AI logic
-        self.results["ai_analysis"] = [
-            "Potential vulnerability in exposed service on port " + str(self.results['ports'][0]['port']) if self.results['ports'] else "No open ports found for exploitation.",
-            "Brute force admin panel if discovered in directory scan.",
-            "Check for subdomain takeover on: " + (self.results['subdomains'][0] if self.results['subdomains'] else "N/A")
-        ]
+        """AI-powered attack vector generation using OpenAI."""
+        if not self.api_key: return
+        
+        console.print("[bold yellow]🤖 Consulting AI for deep exploit analysis...[/bold yellow]")
+        
+        recon_data = {
+            "target": self.target,
+            "ports": self.results["ports"],
+            "tech": self.results["tech"],
+            "directories": self.results["directories"]
+        }
+        
+        prompt = f"""
+        As a professional pentester, analyze the following recon data for {self.target}:
+        {json.dumps(recon_data, indent=2)}
+        
+        Provide:
+        1. Top 3 most likely attack vectors.
+        2. Specific tools/commands to test them.
+        3. Potential impact.
+        
+        Keep it concise and technical.
+        """
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                    json={
+                        "model": "gpt-3.5-turbo",
+                        "messages": [{"role": "user", "content": prompt}]
+                    },
+                    timeout=15
+                ) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        self.results["ai_analysis"] = data['choices'][0]['message']['content']
+                    else:
+                        self.results["ai_analysis"] = f"AI Analysis failed (HTTP {resp.status})"
+        except Exception as e:
+            self.results["ai_analysis"] = f"AI Error: {str(e)}"
 
     def save_results(self):
         report_path = self.output_dir / "full_recon.json"
@@ -264,6 +298,9 @@ class ReconEngineUltra:
         table.add_row("Tech", ", ".join(self.results['tech']) or "Unknown")
         
         console.print(table)
+
+        if self.results["ai_analysis"]:
+            console.print(Panel(self.results["ai_analysis"], title="[bold red]🤖 AI Attack Vectors[/bold red]", border_style="red"))
 
 # ═══════════════════════════════════════════════════════════════
 # 🏁 MAIN ENTRY
