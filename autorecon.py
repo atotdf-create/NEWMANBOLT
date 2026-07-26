@@ -96,6 +96,37 @@ class SecurityModules:
             info["Error"] = "Could not resolve"
         return info
 
+    @staticmethod
+    async def google_dork(target: str):
+        """Perform basic Google Dorking."""
+        dorks = [
+            f"site:{target} intitle:index.of",
+            f"site:{target} ext:xml | ext:conf | ext:cnf | ext:reg | ext:inf | ext:rdp | ext:cfg | ext:txt | ext:ora | ext:ini",
+            f"site:{target} ext:sql | ext:dbf | ext:mdb",
+            f"site:{target} ext:log",
+            f"site:{target} ext:bkf | ext:bkp | ext:bak | ext:old | ext:backup"
+        ]
+        results = []
+        for dork in dorks:
+            query = urllib.parse.quote(dork)
+            results.append(f"https://www.google.com/search?q={query}")
+        return results
+
+    @staticmethod
+    async def brute_directories(target: str):
+        """Deep Directory Brute-forcing."""
+        wordlist = [".env", ".git", "admin/", "config.php", "backup.sql", "shell.php", "v1/api/"]
+        found = []
+        url = f"http://{target}/"
+        async with aiohttp.ClientSession(headers={"User-Agent": "Mozilla/5.0"}) as session:
+            for d in wordlist:
+                try:
+                    async with session.get(url + d, timeout=3) as resp:
+                        if resp.status in [200, 403]:
+                            found.append({"path": d, "status": resp.status})
+                except: continue
+        return found
+
 # ═══════════════════════════════════════════════════════════════
 # 🧠 RECON ENGINE PRO
 # ═══════════════════════════════════════════════════════════════
@@ -187,12 +218,18 @@ async def main_menu():
         
         if choice == "1":
             await engine.run_full_recon()
+        elif choice == "2":
+            results = await SecurityModules.brute_directories(target)
+            console.print(Panel(str(results), title="Directory Findings"))
         elif choice == "3":
             results = await SecurityModules.analyze_headers(f"http://{target}")
-            console.print(results)
+            console.print(Panel(str(results), title="Header Audit"))
         elif choice == "4":
             results = SecurityModules.get_dns_info(target)
-            console.print(results)
+            console.print(Panel(str(results), title="DNS Intel"))
+        elif choice == "6":
+            results = await SecurityModules.google_dork(target)
+            for r in results: console.print(f"[blue]Link:[/blue] {r}")
         
         Prompt.ask("\n[dim]Press Enter to return to menu...[/dim]")
 
